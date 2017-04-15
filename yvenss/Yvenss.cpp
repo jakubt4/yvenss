@@ -3,7 +3,7 @@
 // Author      : Jakub Toth
 // Version     :
 // Copyright   : open source
-// Description : main class of Yvenss
+// Description : Sorting of events
 //============================================================================
 
 #include <stdio.h>
@@ -16,6 +16,9 @@
 
 using namespace std;
 
+/*
+ * Main method with parameter for generating specific number of events
+ */
 int main(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-gen") == 0) {
