@@ -33,6 +33,7 @@
         long double baseAngle = PI / 10.0;
         int eventsPerBin;
         int events;
+        long double ONE_DEGREE = PI / 180;
 
         typedef vector<long double> Row; // One row of the matrix
         typedef vector<Row> Events; //  a vector of rows

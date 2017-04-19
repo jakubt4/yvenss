@@ -47,13 +47,15 @@ Sorter::Sorter() {
 
     //2D vector for empirical distributions
     Events eventsMatrix(events, Row(eventFields));
-
+    Events eventsMatrixTest(events, Row());
     //setup initial values for 2D vector
     for (int i = 0; i < events; i++) {
         for (int j = 0; j < eventFields; j++) {
             eventsMatrix[i][j] = 0.0;
+            eventsMatrixTest[i].push_back(0.0);
         }
         eventsMatrix[i][multiplicityField] = m[i];
+        eventsMatrixTest[i][multiplicityField] = m[i];
     }
     m.clear();
 
@@ -122,18 +124,25 @@ Sorter::Sorter() {
         //read data from file
         std::ifstream ifile(path.c_str(), std::ios::in);
 
+        Row actualEvent;
         while (ifile >> event) {
             ifile >> angle;
-            //empirical distribution
+            actualEvent.push_back(angle);
+        }
+
+        ifile.close();
+
+        std::sort(actualEvent.begin(), actualEvent.end());
+        //empirical distribution
+        for (int k = 0; k < actualEvent.size(); k++) {
             for (int j = 0; j < 20; j++) {
-                if (angle >= (baseAngle * j) && angle < (baseAngle * (j + 1.0))) {
-                    eventsMatrix[i][j] += 1;
+                if (actualEvent[k] >= (baseAngle * j) && actualEvent[k] < (baseAngle * (j + 1.0))) {
+                    eventsMatrixTest[i][j] += 1;
+                    eventsMatrixTest[i].push_back(actualEvent[k]);
                     break;
                 }
             }
         }
-
-        ifile.close();
 
         if ((i + 1) % 1000 == 0) {
             cout << event << '/' << events << endl;
@@ -158,9 +167,11 @@ Sorter::Sorter() {
     for (int i = 0; i < events; i++) {
         long double sum_av_x = 0.0;
         for (int j = 0; j < 20; j++) {
-            sum_av_x += (eventsMatrix[i][j] * x[j]);
+//            sum_av_x += (eventsMatrix[i][j] * x[j]);
+            sum_av_x += (eventsMatrixTest[i][j] * x[j]);
         }
-        av_x[i] = sum_av_x / eventsMatrix[i][multiplicityField];
+//        av_x[i] = sum_av_x / eventsMatrix[i][multiplicityField];
+        av_x[i] = sum_av_x / eventsMatrixTest[i][multiplicityField];
     }
 
     //compute variance
@@ -169,9 +180,11 @@ Sorter::Sorter() {
     for (int i = 0; i < events; i++) {
         long double result_x = 0.0;
         for (int j = 0; j < 20; j++) {
-            result_x += (pow((x[j] - av_x[i]), 2) * eventsMatrix[i][j]);
+//            result_x += (pow((x[j] - av_x[i]), 2) * eventsMatrix[i][j]);
+            result_x += (pow((x[j] - av_x[i]), 2) * eventsMatrixTest[i][j]);
         }
-        result_x = result_x / eventsMatrix[i][multiplicityField];
+//        result_x = result_x / eventsMatrix[i][multiplicityField];
+        result_x = result_x / eventsMatrixTest[i][multiplicityField];
         vec_res[i] = result_x;
     }
 
@@ -179,10 +192,98 @@ Sorter::Sorter() {
     std::sort(vec_res.begin(), vec_res.end());
 
     for (int i = 0; i < events; i++) {
-        eventsMatrix[i][sorterField] = vec_res[i];
+//        eventsMatrix[i][sorterField] = vec_res[i];
+        eventsMatrixTest[i][sorterField] = vec_res[i];
     }
 
-    std::sort(eventsMatrix.begin(), eventsMatrix.end(), compare);
+//    std::sort(eventsMatrix.begin(), eventsMatrix.end(), compare);
+    std::sort(eventsMatrixTest.begin(), eventsMatrixTest.end(), compare);
+
+    Events newAngles(events, Row());
+
+    for (int i = 0; i < events; i++) {
+        for (int j = eventFields; j < eventsMatrixTest[i].size(); j++) {
+            newAngles[i].push_back(eventsMatrixTest[i][j]);
+        }
+    }
+
+    Row previousEvent;
+    previousEvent.assign(newAngles[0].begin(), newAngles[0].end());
+    long double kolmogorov_smirnovov_previousEv = (2 * PI) - previousEvent[previousEvent.size() - 1];
+    for (int i = 0; i < (previousEvent.size() - 1); i++) {
+        kolmogorov_smirnovov_previousEv += ((i + 1) * (previousEvent[i + 1] - previousEvent[i])) / previousEvent.size();
+    }
+
+    long double kolmogorov_smirnovov_actualEv = 0.0;
+
+    for (int i = 1; i < events; i++) {
+        kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+        for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+            kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j])) / newAngles[i].size();
+        }
+
+        if (kolmogorov_smirnovov_actualEv == kolmogorov_smirnovov_previousEv) {
+            break;
+        }
+
+        long double baseDiff = 0.0;
+        if (kolmogorov_smirnovov_actualEv > kolmogorov_smirnovov_previousEv) {
+            baseDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+            while (true) {
+                for (int j = 0; j < (newAngles[i].size()); j++) {
+                    newAngles[i][j] -= ONE_DEGREE;
+                    if (newAngles[i][j] < 0) {
+                        newAngles[i][j] += (2 * PI);
+                    }
+                }
+                kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+                for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+                    kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
+                            / newAngles[i].size();
+                }
+                long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+                if (baseDiff > actualDiff) {
+                    baseDiff = actualDiff;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            while (true) {
+                for (int j = 0; j < (newAngles[i].size()); j++) {
+                    newAngles[i][j] += ONE_DEGREE;
+                    if (newAngles[i][j] > (2 * PI)) {
+                        newAngles[i][j] -= (2 * PI);
+                    }
+                }
+                kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+                for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+                    kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
+                            / newAngles[i].size();
+                }
+                long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+                if (baseDiff > actualDiff) {
+                    baseDiff = actualDiff;
+                } else {
+                    break;
+                }
+            }
+        }
+        kolmogorov_smirnovov_previousEv = kolmogorov_smirnovov_actualEv;
+        previousEvent.clear();
+        previousEvent.assign(newAngles[i].begin(), newAngles[i].end());
+    }
+
+    for (int i = 0; i < events; i++) {
+        for (int k = 0; k < newAngles[i].size(); k++) {
+            for (int j = 0; j < 20; j++) {
+                if (newAngles[i][k] >= (baseAngle * j) && newAngles[i][k] < (baseAngle * (j + 1.0))) {
+                    eventsMatrix[i][j] += 1;
+                    break;
+                }
+            }
+        }
+    }
 
     //3D vector for empirical distributions of events in event bins - distribution of events from 2D vector to event
     //bins in 3D vector
@@ -193,6 +294,7 @@ Sorter::Sorter() {
         for (int j = 0; j < eventsPerBin; j++) {
             for (int k = 0; k < eventFields; k++) {
                 binsMatrix[i][j][k] = eventsMatrix[actualEvent][k];
+//                binsMatrix[i][j][k] = eventsMatrixTest[actualEvent][k];
                 if (k == myBinId) {
                     binsMatrix[i][j][k] = i;
                 }
@@ -458,6 +560,10 @@ void Sorter::sort() {
 
     ofstream result_f;
     ofstream result_a_f;
+    ofstream result_oa_f;
+    string binPathOvAv = basePath + RESULT + "av_bin";
+    result_oa_f.open(binPathOvAv.c_str());
+
     for (int i = 0; i < bins; i++) {
 
         //prepare file for average of empirical distributions of events of every event bin
@@ -485,12 +591,15 @@ void Sorter::sort() {
 
         for (int l = 0; l < multiplicityField; l++) {
             result_a_f << av_u[l] / eventsPerBin << setw(4);
+            result_oa_f << av_u[l] / eventsPerBin << setw(4);
         }
 
         result_a_f << endl;
+        result_oa_f << endl;
         result_a_f.close();
         result_f.close();
     }
+    result_oa_f.close();
 }
 
 /*
