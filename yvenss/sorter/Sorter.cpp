@@ -19,15 +19,11 @@ bool compare(vector<long double> row_a, vector<long double> row_b) {
  */
 Sorter::Sorter() {
 
-    //remove old results
-    BasePath bp;
-    string removeOld = "rm -r " + bp.getBasePath() + RESULT;
-    system(removeOld.c_str());
-
     cout << "--------------------------------------------------" << endl;
     cout << "Loading data.." << endl;
 
     //path to data for loading
+    BasePath bp;
     string path = bp.getBasePath() + GEN_EVENTS_FILE_PATH;
     std::ifstream ifile_ev(path.c_str(), std::ios::in);
 
@@ -35,6 +31,7 @@ Sorter::Sorter() {
     events = 0;
     int actualM = 0;
     std::vector<int> m;
+
     while (ifile_ev >> events) {
         ifile_ev >> actualM;
         m.push_back(actualM);
@@ -62,50 +59,7 @@ Sorter::Sorter() {
     int event = 1;
     int min = 1;
     int max = 1000;
-
     long double angle = 0.0;
-
-    //Values for sorting by q2
-    //long double q_x = 0.0;
-    //long double q_y = 0.0;
-    //long double q_2 = 0.0;
-
-    //Sorting by q2
-//    for (int i = 0; i < events; i++) {
-//        if (events >= 1000) {
-//            if (i % 1000 == 0) {
-//                min = i + 1;
-//                max = i + 1000;
-//            }
-//            path = bp.getBasePath() + GEN_PATH + "generated_particles_" + to_string(min) + "_" + to_string(max) + "/"
-//                    + GEN_PARTICLES + to_string(i + 1);
-//        } else {
-//            path = bp.getBasePath() + GEN_PARTICLES_FILE_PATH + to_string(i + 1);
-//        }
-//        std::ifstream ifile(path.c_str(), std::ios::in);
-//
-//        while (ifile >> event) {
-//            ifile >> angle;
-//            q_x += cos(2.0 * angle);
-//            q_y += sin(2.0 * angle);
-//            for (int j = 0; j < 20; j++) {
-//                if (angle >= (baseAngle * j) && angle < (baseAngle * (j + 1.0))) {
-//                    eventsMatrix[i][j] += 1;
-//                    break;
-//                }
-//            }
-//        }
-//
-//        ifile.close();
-//
-//        q_2 = sqrt(pow(q_x, 2) + pow(q_y, 2)) / sqrt(eventsMatrix[i][multiplicityField]);
-//        eventsMatrix[i][sorterField] = q_2;
-//        q_x = 0;
-//        q_y = 0;
-//        if ((i + 1) % 1000 == 0) {
-//            cout << event << '/' << events << endl;
-//        }
-//    }
 
     //read data from files and prepare empirical distributions
     for (int i = 0; i < events; i++) {
@@ -147,6 +101,8 @@ Sorter::Sorter() {
         if ((i + 1) % 1000 == 0) {
             cout << event << '/' << events << endl;
         }
+
+        eventsMatrixTest[i][myId] = i + 1;
     }
 
     cout << "Data loaded." << endl;
@@ -163,14 +119,12 @@ Sorter::Sorter() {
         x[j] = (baseAngle * j) + (((baseAngle * (j + 1.0)) - (baseAngle * j)) / 2);
     }
 
-    //compute normalized average of the interval classification
+    //compute normalized average x of the interval classification
     for (int i = 0; i < events; i++) {
         long double sum_av_x = 0.0;
         for (int j = 0; j < 20; j++) {
-//            sum_av_x += (eventsMatrix[i][j] * x[j]);
             sum_av_x += (eventsMatrixTest[i][j] * x[j]);
         }
-//        av_x[i] = sum_av_x / eventsMatrix[i][multiplicityField];
         av_x[i] = sum_av_x / eventsMatrixTest[i][multiplicityField];
     }
 
@@ -180,23 +134,19 @@ Sorter::Sorter() {
     for (int i = 0; i < events; i++) {
         long double result_x = 0.0;
         for (int j = 0; j < 20; j++) {
-//            result_x += (pow((x[j] - av_x[i]), 2) * eventsMatrix[i][j]);
             result_x += (pow((x[j] - av_x[i]), 2) * eventsMatrixTest[i][j]);
         }
-//        result_x = result_x / eventsMatrix[i][multiplicityField];
         result_x = result_x / eventsMatrixTest[i][multiplicityField];
         vec_res[i] = result_x;
     }
 
-    //set results of variance like sorting value
+    //sort results of variance according to sorting value
     std::sort(vec_res.begin(), vec_res.end());
 
     for (int i = 0; i < events; i++) {
-//        eventsMatrix[i][sorterField] = vec_res[i];
         eventsMatrixTest[i][sorterField] = vec_res[i];
     }
 
-//    std::sort(eventsMatrix.begin(), eventsMatrix.end(), compare);
     std::sort(eventsMatrixTest.begin(), eventsMatrixTest.end(), compare);
 
     Events newAngles(events, Row());
@@ -282,6 +232,7 @@ Sorter::Sorter() {
                     break;
                 }
             }
+            eventsMatrix[i][myId] = eventsMatrixTest[i][myId];
         }
     }
 
@@ -294,7 +245,6 @@ Sorter::Sorter() {
         for (int j = 0; j < eventsPerBin; j++) {
             for (int k = 0; k < eventFields; k++) {
                 binsMatrix[i][j][k] = eventsMatrix[actualEvent][k];
-//                binsMatrix[i][j][k] = eventsMatrixTest[actualEvent][k];
                 if (k == myBinId) {
                     binsMatrix[i][j][k] = i;
                 }
@@ -342,12 +292,8 @@ void Sorter::sort() {
     while (sorter) {
 
         sorter = false;
-
         //number of cycles
         cyc++;
-
-        //cycle timer - START
-        clock_t begin_cyc = clock();
 
         /*STARTING OF ALGHORITM FOR SORTING*/
         /*********************************************************************************************************************/
@@ -534,12 +480,6 @@ void Sorter::sort() {
         if (cyc == 5000) {
             break;
         }
-
-        //cycle timer - END
-        clock_t endcyc = clock();
-        //computing of elapsed time of one cycle (in seconds)
-        double elapsed_cyc = double(endcyc - begin_cyc) / CLOCKS_PER_SEC;
-        //cout << "ELAPSED TIME PER CYC: " << elapsed_cyc << " :: Cycle= " << cyc << endl;
     }
 
     //sorting timer - END
@@ -548,12 +488,16 @@ void Sorter::sort() {
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
     cout << "ELAPSED TIME : " << elapsed_secs << " :: NUMBRE OF CYCLES = " << cyc << endl;
 
+    //remove old results
+    BasePath bp;
+    string removeOld = "rm -r " + bp.getBasePath() + RESULT;
+    system(removeOld.c_str());
+
     //writing results to file like average of empirical distributions of events of every event bin and like all empirical
     //distributions of events of every event bin
     cout << "Writing results to file.." << endl;
 
     //prepare folder for results
-    BasePath bp;
     string basePath = bp.getBasePath();
     string resultFolder = basePath + RESULT;
     CreateFolder cf(resultFolder);
@@ -600,36 +544,17 @@ void Sorter::sort() {
         result_f.close();
     }
     result_oa_f.close();
-}
 
-/*
- * Print out angle bins of every event
- */
-void Sorter::printAngleBins() {
+    ofstream result_id;
+    string idPath = basePath + RESULT + "id_events";
+    result_id.open(idPath.c_str());
     for (int i = 0; i < bins; i++) {
         for (int j = 0; j < eventsPerBin; j++) {
-            for (int k = 0; k < eventFields; k++) {
-                cout << binsMatrixOrig[i][j][k] << " | ";
-            }
-            cout << endl;
+            result_id << binsMatrixOrig[i][j][myId] << endl;
         }
     }
-}
+    result_id.close();
 
-/*
- * Print out sorter of every event of event bins
- */
-void Sorter::printEvents() {
-    int actualEvent = 0;
-    for (int i = 0; i < bins; i++) {
-        for (int j = 0; j < eventsPerBin; j++) {
-            if ((j + 1) % 10 == 0) {
-                cout << "EVENT " << actualEvent + 1 << " :: BIN : " << binsMatrixOrig[i][j][myBinId]
-                        << " :: SORTED BY : " << binsMatrixOrig[i][j][sorterField] << endl;
-            }
-            actualEvent += 1;
-        }
-    }
 }
 
 Sorter::~Sorter() {

@@ -21,13 +21,14 @@
 
     class Sorter {
     private:
-        int multiplicitySorterFields = 3;
+        int fields = 4; //multiplicity, sorter, bin ID of event, event ID;
         int angleBins = 20;
-        int eventFields = angleBins + multiplicitySorterFields;
+        int eventFields = angleBins + fields;
         int multiplicityField = 20;
         int sorterField = 21;
         int sumAngleBinsByIFields = 21;
         int myBinId = 22;
+        int myId = 23;
         int bins = 10;
         long double PI = 3.14159265358979323846;
         long double baseAngle = PI / 10.0;
@@ -43,8 +44,6 @@
     public:
         Sorter();
         void sort();
-        void printAngleBins();
-        void printEvents();
         virtual ~Sorter();
     };
 

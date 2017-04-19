@@ -1,4 +1,4 @@
-CXXFLAGS =	-O2 -g -Wall -Wsign-compare -fmessage-length=0 -std=c++11 -fopenmp
+CXXFLAGS =	-O2 -g -Wall -Wno-sign-compare -fmessage-length=0 -std=c++11 -fopenmp
 
 BASE_PATH = files/impl/BasePath.o
 CREATE_FOLDER = files/impl/CreateFolder.o
