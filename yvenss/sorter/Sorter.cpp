@@ -173,7 +173,7 @@ Sorter::Sorter() {
         }
 
         if (kolmogorov_smirnovov_actualEv == kolmogorov_smirnovov_previousEv) {
-            break;
+            continue;
         }
 
         long double baseDiff = 0.0;

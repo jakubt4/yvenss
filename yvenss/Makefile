@@ -10,7 +10,7 @@ OBJS =		Yvenss.o $(BASE_PATH) $(CREATE_FOLDER) $(GENERATOR) $(SORTER)
 
 LIBS = -fopenmp
 
-TARGET =	yvenss
+TARGET =	yvenss.exe
 
 $(TARGET):	$(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
