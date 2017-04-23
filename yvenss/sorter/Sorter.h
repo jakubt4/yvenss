@@ -42,7 +42,7 @@
 
         Bins binsMatrixOrig;
     public:
-        Sorter(bool rotate);
+        Sorter(bool rotate, string externPath);
         void sort();
         virtual ~Sorter();
     };

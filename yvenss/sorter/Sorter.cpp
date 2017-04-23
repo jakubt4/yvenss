@@ -17,26 +17,47 @@ bool compare(vector<long double> row_a, vector<long double> row_b) {
 /*
  * Constructor of sorter prepare data (read them a make initial sorting) for sorting.
  */
-Sorter::Sorter(bool rotate) {
+Sorter::Sorter(bool rotate, string externPath) {
 
     cout << "--------------------------------------------------" << endl;
     cout << "Loading data.." << endl;
-
-    //path to data for loading
-    BasePath bp;
-    string path = bp.getBasePath() + GEN_EVENTS_FILE_PATH;
-    std::ifstream ifile_ev(path.c_str(), std::ios::in);
 
     //read number of events
     events = 0;
     int actualM = 0;
     std::vector<int> m;
 
-    while (ifile_ev >> events) {
-        ifile_ev >> actualM;
+    //path to data for loading
+    BasePath bp;
+    string path;
+    if (externPath.empty()) {
+        path = bp.getBasePath() + GEN_EVENTS_FILE_PATH;
+        std::ifstream ifile_ev(path.c_str(), std::ios::in);
+        while (ifile_ev >> events) {
+            ifile_ev >> actualM;
+            m.push_back(actualM);
+        }
+        cout << events << endl;
+        ifile_ev.close();
+    } else {
+        path = externPath;
+        std::ifstream ifile_ev(path.c_str(), std::ios::in);
+        long double prevEventNum = 0;
+        long double dummy = 0;
+        while (ifile_ev >> events) {
+            if (events != prevEventNum) {
+                if (prevEventNum != 0) {
+                    m.push_back(actualM);
+                }
+                prevEventNum = events;
+                actualM = 0;
+            }
+            ifile_ev >> dummy;
+            actualM++;
+        }
         m.push_back(actualM);
+        ifile_ev.close();
     }
-    ifile_ev.close();
 
     //events per bin
     eventsPerBin = events / bins;
@@ -62,47 +83,99 @@ Sorter::Sorter(bool rotate) {
     long double angle = 0.0;
 
     //read data from files and prepare empirical distributions
-    for (int i = 0; i < events; i++) {
+    if (externPath.empty()) {
+        for (int i = 0; i < events; i++) {
         //prepare path for file to read data from
-        if (events >= 1000) {
-            if (i % 1000 == 0) {
-                min = i + 1;
-                max = i + 1000;
+            if (events >= 1000) {
+                if (i % 1000 == 0) {
+                    min = i + 1;
+                    max = i + 1000;
+                }
+                path = bp.getBasePath() + GEN_PATH + "generated_particles_" + to_string(min) + "_" + to_string(max)
+                        + "/" + GEN_PARTICLES + to_string(i + 1);
+            } else {
+                path = bp.getBasePath() + GEN_PARTICLES_FILE_PATH + to_string(i + 1);
             }
-            path = bp.getBasePath() + GEN_PATH + "generated_particles_" + to_string(min) + "_" + to_string(max) + "/"
-                    + GEN_PARTICLES + to_string(i + 1);
-        } else {
-            path = bp.getBasePath() + GEN_PARTICLES_FILE_PATH + to_string(i + 1);
+
+            //read data from file
+            std::ifstream ifile(path.c_str(), std::ios::in);
+
+            Row actualEvent;
+            while (ifile >> event) {
+                ifile >> angle;
+                actualEvent.push_back(angle);
+            }
+
+            ifile.close();
+
+            std::sort(actualEvent.begin(), actualEvent.end());
+            //empirical distribution
+            for (int k = 0; k < actualEvent.size(); k++) {
+                for (int j = 0; j < 20; j++) {
+                    if (actualEvent[k] >= (baseAngle * j) && actualEvent[k] < (baseAngle * (j + 1.0))) {
+                        eventsMatrixTest[i][j] += 1;
+                        eventsMatrixTest[i].push_back(actualEvent[k]);
+                        break;
+                    }
+                }
+            }
+
+            if ((i + 1) % 1000 == 0) {
+                cout << event << '/' << events << endl;
+            }
+
+            eventsMatrixTest[i][myId] = i + 1;
         }
-
-        //read data from file
-        std::ifstream ifile(path.c_str(), std::ios::in);
-
+    } else {
+        std::ifstream ifile_ev(path.c_str(), std::ios::in);
+        int prevEventNum = 0;
         Row actualEvent;
-        while (ifile >> event) {
-            ifile >> angle;
+        while (ifile_ev >> event) {
+            if (event != prevEventNum) {
+                if (prevEventNum != 0) {
+                    std::sort(actualEvent.begin(), actualEvent.end());
+
+                    //empirical distribution
+                    for (int k = 0; k < actualEvent.size(); k++) {
+                        for (int j = 0; j < 20; j++) {
+                            if (actualEvent[k] >= (baseAngle * j) && actualEvent[k] < (baseAngle * (j + 1.0))) {
+                                eventsMatrixTest[prevEventNum - 1][j] += 1;
+                                eventsMatrixTest[prevEventNum - 1].push_back(actualEvent[k]);
+                                break;
+                            }
+                        }
+                    }
+
+                    if ((prevEventNum) % 1000 == 0) {
+                        cout << event - 1 << '/' << events << endl;
+                    }
+                    eventsMatrixTest[prevEventNum - 1][myId] = prevEventNum;
+                }
+                prevEventNum = event;
+                actualEvent.clear();
+            }
+            ifile_ev >> angle;
             actualEvent.push_back(angle);
         }
-
-        ifile.close();
-
         std::sort(actualEvent.begin(), actualEvent.end());
+
         //empirical distribution
         for (int k = 0; k < actualEvent.size(); k++) {
             for (int j = 0; j < 20; j++) {
                 if (actualEvent[k] >= (baseAngle * j) && actualEvent[k] < (baseAngle * (j + 1.0))) {
-                    eventsMatrixTest[i][j] += 1;
-                    eventsMatrixTest[i].push_back(actualEvent[k]);
+                    eventsMatrixTest[prevEventNum - 1][j] += 1;
+                    eventsMatrixTest[prevEventNum - 1].push_back(actualEvent[k]);
                     break;
                 }
             }
         }
 
-        if ((i + 1) % 1000 == 0) {
-            cout << event << '/' << events << endl;
+        if ((prevEventNum) % 1000 == 0) {
+            cout << event - 1 << '/' << events << endl;
         }
+        eventsMatrixTest[prevEventNum - 1][myId] = prevEventNum;
 
-        eventsMatrixTest[i][myId] = i + 1;
+        ifile_ev.close();
     }
 
     cout << "Data loaded." << endl;
@@ -149,7 +222,9 @@ Sorter::Sorter(bool rotate) {
 
     std::sort(eventsMatrixTest.begin(), eventsMatrixTest.end(), compare);
 
+    //rotate events
     if (rotate) {
+        //prepare original events
         Events newAngles(events, Row());
 
         for (int i = 0; i < events; i++) {
