@@ -17,7 +17,7 @@ bool compare(vector<long double> row_a, vector<long double> row_b) {
 /*
  * Constructor of sorter prepare data (read them a make initial sorting) for sorting.
  */
-Sorter::Sorter() {
+Sorter::Sorter(bool rotate) {
 
     cout << "--------------------------------------------------" << endl;
     cout << "Loading data.." << endl;
@@ -149,90 +149,94 @@ Sorter::Sorter() {
 
     std::sort(eventsMatrixTest.begin(), eventsMatrixTest.end(), compare);
 
-    Events newAngles(events, Row());
+    if (rotate) {
+        Events newAngles(events, Row());
 
-    for (int i = 0; i < events; i++) {
-        for (int j = eventFields; j < eventsMatrixTest[i].size(); j++) {
-            newAngles[i].push_back(eventsMatrixTest[i][j]);
-        }
-    }
-
-    Row previousEvent;
-    previousEvent.assign(newAngles[0].begin(), newAngles[0].end());
-    long double kolmogorov_smirnovov_previousEv = (2 * PI) - previousEvent[previousEvent.size() - 1];
-    for (int i = 0; i < (previousEvent.size() - 1); i++) {
-        kolmogorov_smirnovov_previousEv += ((i + 1) * (previousEvent[i + 1] - previousEvent[i])) / previousEvent.size();
-    }
-
-    long double kolmogorov_smirnovov_actualEv = 0.0;
-
-    for (int i = 1; i < events; i++) {
-        kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
-        for (int j = 0; j < (newAngles[i].size() - 1); j++) {
-            kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j])) / newAngles[i].size();
+        for (int i = 0; i < events; i++) {
+            for (int j = eventFields; j < eventsMatrixTest[i].size(); j++) {
+                newAngles[i].push_back(eventsMatrixTest[i][j]);
+            }
         }
 
-        if (kolmogorov_smirnovov_actualEv == kolmogorov_smirnovov_previousEv) {
-            continue;
+        Row previousEvent;
+        previousEvent.assign(newAngles[0].begin(), newAngles[0].end());
+        long double kolmogorov_smirnovov_previousEv = (2 * PI) - previousEvent[previousEvent.size() - 1];
+        for (int i = 0; i < (previousEvent.size() - 1); i++) {
+            kolmogorov_smirnovov_previousEv += ((i + 1) * (previousEvent[i + 1] - previousEvent[i]))
+                    / previousEvent.size();
         }
 
-        long double baseDiff = 0.0;
-        if (kolmogorov_smirnovov_actualEv > kolmogorov_smirnovov_previousEv) {
-            baseDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
-            while (true) {
-                for (int j = 0; j < (newAngles[i].size()); j++) {
-                    newAngles[i][j] -= ONE_DEGREE;
-                    if (newAngles[i][j] < 0) {
-                        newAngles[i][j] += (2 * PI);
+        long double kolmogorov_smirnovov_actualEv = 0.0;
+
+        for (int i = 1; i < events; i++) {
+            kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+            for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+                kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
+                        / newAngles[i].size();
+            }
+
+            if (kolmogorov_smirnovov_actualEv == kolmogorov_smirnovov_previousEv) {
+                continue;
+            }
+
+            long double baseDiff = 0.0;
+            if (kolmogorov_smirnovov_actualEv > kolmogorov_smirnovov_previousEv) {
+                baseDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+                while (true) {
+                    for (int j = 0; j < (newAngles[i].size()); j++) {
+                        newAngles[i][j] -= ONE_DEGREE;
+                        if (newAngles[i][j] < 0) {
+                            newAngles[i][j] += (2 * PI);
+                        }
+                    }
+                    kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+                    for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+                        kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
+                                / newAngles[i].size();
+                    }
+                    long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+                    if (baseDiff > actualDiff) {
+                        baseDiff = actualDiff;
+                    } else {
+                        break;
                     }
                 }
-                kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
-                for (int j = 0; j < (newAngles[i].size() - 1); j++) {
-                    kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
-                            / newAngles[i].size();
-                }
-                long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
-                if (baseDiff > actualDiff) {
-                    baseDiff = actualDiff;
-                } else {
-                    break;
-                }
-            }
-        } else {
-            while (true) {
-                for (int j = 0; j < (newAngles[i].size()); j++) {
-                    newAngles[i][j] += ONE_DEGREE;
-                    if (newAngles[i][j] > (2 * PI)) {
-                        newAngles[i][j] -= (2 * PI);
+            } else {
+                while (true) {
+                    for (int j = 0; j < (newAngles[i].size()); j++) {
+                        newAngles[i][j] += ONE_DEGREE;
+                        if (newAngles[i][j] > (2 * PI)) {
+                            newAngles[i][j] -= (2 * PI);
+                        }
+                    }
+                    kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
+                    for (int j = 0; j < (newAngles[i].size() - 1); j++) {
+                        kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
+                                / newAngles[i].size();
+                    }
+                    long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
+                    if (baseDiff > actualDiff) {
+                        baseDiff = actualDiff;
+                    } else {
+                        break;
                     }
                 }
-                kolmogorov_smirnovov_actualEv = (2 * PI) - newAngles[i][newAngles[i].size() - 1];
-                for (int j = 0; j < (newAngles[i].size() - 1); j++) {
-                    kolmogorov_smirnovov_actualEv += ((j + 1) * (newAngles[i][j + 1] - newAngles[i][j]))
-                            / newAngles[i].size();
-                }
-                long double actualDiff = kolmogorov_smirnovov_actualEv - kolmogorov_smirnovov_previousEv;
-                if (baseDiff > actualDiff) {
-                    baseDiff = actualDiff;
-                } else {
-                    break;
-                }
             }
+            kolmogorov_smirnovov_previousEv = kolmogorov_smirnovov_actualEv;
+            previousEvent.clear();
+            previousEvent.assign(newAngles[i].begin(), newAngles[i].end());
         }
-        kolmogorov_smirnovov_previousEv = kolmogorov_smirnovov_actualEv;
-        previousEvent.clear();
-        previousEvent.assign(newAngles[i].begin(), newAngles[i].end());
-    }
 
-    for (int i = 0; i < events; i++) {
-        for (int k = 0; k < newAngles[i].size(); k++) {
-            for (int j = 0; j < 20; j++) {
-                if (newAngles[i][k] >= (baseAngle * j) && newAngles[i][k] < (baseAngle * (j + 1.0))) {
-                    eventsMatrix[i][j] += 1;
-                    break;
+        for (int i = 0; i < events; i++) {
+            for (int k = 0; k < newAngles[i].size(); k++) {
+                for (int j = 0; j < 20; j++) {
+                    if (newAngles[i][k] >= (baseAngle * j) && newAngles[i][k] < (baseAngle * (j + 1.0))) {
+                        eventsMatrix[i][j] += 1;
+                        break;
+                    }
                 }
+                eventsMatrix[i][myId] = eventsMatrixTest[i][myId];
             }
-            eventsMatrix[i][myId] = eventsMatrixTest[i][myId];
         }
     }
 
@@ -244,7 +248,11 @@ Sorter::Sorter() {
     for (int i = 0; i < bins; i++) {
         for (int j = 0; j < eventsPerBin; j++) {
             for (int k = 0; k < eventFields; k++) {
-                binsMatrix[i][j][k] = eventsMatrix[actualEvent][k];
+                if (rotate) {
+                    binsMatrix[i][j][k] = eventsMatrix[actualEvent][k];
+                } else {
+                    binsMatrix[i][j][k] = eventsMatrixTest[actualEvent][k];
+                }
                 if (k == myBinId) {
                     binsMatrix[i][j][k] = i;
                 }

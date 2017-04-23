@@ -20,8 +20,9 @@ using namespace std;
  * Main method with parameter for generating specific number of events
  */
 int main(int argc, char* argv[]) {
+    bool rotation = true;
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-gen") == 0) {
+        if (strcmp(argv[i], "-gen") == 0 || strcmp(argv[i], "--generate") == 0) {
             if ((i + 1) < argc) {
                 Generator eveGen(atoi(argv[i + 1]));
                 i++;
@@ -30,14 +31,12 @@ int main(int argc, char* argv[]) {
                 Generator eveGen(1000);
                 eveGen.generate();
             }
-        } else {
-            cout << "Bad parameter !!" << endl;
-            cout << "Try: -gen int" << endl;
-            return 0;
+        } else if (strcmp(argv[i], "--without-rotations") == 0 || strcmp(argv[i], "-wr") == 0) {
+            rotation = false;
         }
     }
 
-    Sorter s;
+    Sorter s = Sorter(rotation);
     s.sort();
     cout << "SORTING DONE" << endl;
 
